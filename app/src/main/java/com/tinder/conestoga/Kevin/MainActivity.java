@@ -23,14 +23,19 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import models.Post;
 import pub.devrel.easypermissions.AfterPermissionGranted;
 import pub.devrel.easypermissions.EasyPermissions;
 
@@ -39,22 +44,16 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     //request ID
     private static final int RC_TAKE_PICTURE = 101;
     private static final int RC_STORAGE_PERMS = 102;
-
     private final String TAG = this.getClass().getSimpleName();
-
     private FirebaseAuth mAuth;
-
-    String mCurrentPhotoPath;
-
-    // [START declare_ref]
+    // declare DB ref
+    private DatabaseReference mDatabase;
+    // declare storage ref
     private StorageReference mStorageRef;
-    // [END declare_ref]
 
     private ProgressDialog mProgressDialog;
-
     private static final String KEY_FILE_URI = "key_file_uri";
     private static final String KEY_DOWNLOAD_URL = "key_download_url";
-
 
     //Uri of Could https://firebasestorage.googleapis.com/v0/b/cloudmessaging-e6225.appspot.com/o/photos%2Fc68ef52f-9149-4d93-9b96-46310fa143bb.jpg?alt=media&token=0dd28019-29a5-4718-8d37-39c4660030ea
     private Uri mDownloadUrl = null;
@@ -73,14 +72,13 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         mStorageRef = FirebaseStorage.getInstance().getReference();
         // [END get_storage_ref]
 
+        // [START initialize_database_ref]
+        mDatabase = FirebaseDatabase.getInstance().getReference();
+        // [END initialize_database_ref]
         // Initialize Firebase Auth
         mAuth = FirebaseAuth.getInstance();
-
-
         //for now sing in anonymously otherwise the photo cannot be updated
         signInAnonymously();
-
-
         // Restore instance state
         if (savedInstanceState != null) {
             mFileUri = savedInstanceState.getParcelable(KEY_FILE_URI);
@@ -99,9 +97,6 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         });
     }
 
-
-
-
     //deal with the result backing from camera implicit intent
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -110,6 +105,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             if (resultCode == RESULT_OK) {
                 if (mFileUri != null) {
                     uploadFromUri(mFileUri);
+
                 } else {
                     Log.w(TAG, "File URI is null");
                 }
@@ -152,6 +148,8 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                         // Get the public download URL
                         mDownloadUrl = taskSnapshot.getMetadata().getDownloadUrl();
 
+                        writeNewPost("test", "test", "test","test", mDownloadUrl.toString());
+
                         // [START_EXCLUDE]
                         hideProgressDialog();
 
@@ -177,7 +175,19 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                 });
     }
 
+    private void writeNewPost(String userId, String username, String title, String body, String url) {
+        // Create new post at /user-posts/$userid/$postid and at
+        // /posts/$postid simultaneously
+        String key = mDatabase.child("posts").push().getKey();
+        Post post = new Post(userId, username, title, body, url);
+        Map<String, Object> postValues = post.toMap();
 
+        Map<String, Object> childUpdates = new HashMap<>();
+        childUpdates.put("/posts/" + key, postValues);
+        childUpdates.put("/user-posts/" + userId + "/" + key, postValues);
+
+        mDatabase.updateChildren(childUpdates);
+    }
 
     //display the progressing dialog
     private void showProgressDialog() {
@@ -232,8 +242,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         ad.show();
     }
 
-
-
+    //sign in anonymously
     private void signInAnonymously() {
         // Sign in anonymously. Authentication is required to read or write from Firebase Storage.
         showProgressDialog();
@@ -243,7 +252,6 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                     public void onSuccess(AuthResult authResult) {
                         Log.d(TAG, "signInAnonymously:SUCCESS");
                         hideProgressDialog();
-                        //updateUI(authResult.getUser());
                     }
                 })
                 .addOnFailureListener(this, new OnFailureListener() {
@@ -251,7 +259,6 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                     public void onFailure(@NonNull Exception exception) {
                         Log.e(TAG, "signInAnonymously:FAILURE", exception);
                         hideProgressDialog();
-                        //updateUI(null);
                     }
                 });
     }

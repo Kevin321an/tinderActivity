@@ -1,4 +1,4 @@
-package models;
+package com.tinder.conestoga.kevin.models;
 
 import java.util.HashMap;
 import java.util.Map;

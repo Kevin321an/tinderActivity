@@ -1,6 +1,7 @@
 package com.tinder.conestoga.kevin;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -10,6 +11,8 @@ import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.view.PagerAdapter;
+import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -17,6 +20,8 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
@@ -28,14 +33,15 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
-
+import com.tinder.conestoga.kevin.models.Post;
+import com.tinder.conestoga.kevin.viewAdapter.*;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import models.Post;
 import pub.devrel.easypermissions.AfterPermissionGranted;
 import pub.devrel.easypermissions.EasyPermissions;
 
@@ -84,6 +90,18 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             mFileUri = savedInstanceState.getParcelable(KEY_FILE_URI);
             mDownloadUrl = savedInstanceState.getParcelable(KEY_DOWNLOAD_URL);
         }
+
+        /*ViewPager viewPager = (ViewPager) findViewById(R.id.view_pager);
+        ImagePagerAdapter adapter = new ImagePagerAdapter();
+        viewPager.setAdapter(adapter);*/
+
+        //pass the data to the ViewAdapter
+        ArrayList<Post> str = new ArrayList<>();
+        str.add(new Post("test", "test", "test","test", "https://firebasestorage.googleapis.com/v0/b/cloudmessaging-e6225.appspot.com/o/photos%2F10201f89-f9e2-4eb6-933d-6ab8f7ee224a.jpg?alt=media&token=9623bff0-876d-4b79-8723-2f067c686d24"));
+        str.add(new Post("test", "test", "test","test", "https://firebasestorage.googleapis.com/v0/b/cloudmessaging-e6225.appspot.com/o/photos%2F10201f89-f9e2-4eb6-933d-6ab8f7ee224a.jpg?alt=media&token=9623bff0-876d-4b79-8723-2f067c686d24"));
+        ViewPager viewPager = (ViewPager) findViewById(R.id.view_pager);
+        ViewAdapter adapter = new ViewAdapter(this,str);
+        viewPager.setAdapter(adapter);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -295,7 +313,6 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         if (id == R.id.action_settings) {
             return true;
         }
-
         return super.onOptionsItemSelected(item);
     }
 }

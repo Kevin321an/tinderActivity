@@ -181,6 +181,50 @@
           "status": 2
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:604979509054:android:200806d7926fdb69",
+        "android_client_info": {
+          "package_name": "com.tinder.conestoga.kevin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "604979509054-reudjchqt6pb446gs52rbiqc68n3m9j2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tinder.conestoga.kevin",
+            "certificate_hash": "9C237F17E714DD6B23F1133330B1D37E3003C9EF"
+          }
+        },
+        {
+          "client_id": "604979509054-hd8edr777vjseriq25rrbe3al1sjl2bk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCK0bPpwiOJj-ZyNt7iGRJ-_C0IQHEM-z4"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "604979509054-hd8edr777vjseriq25rrbe3al1sjl2bk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
     }
   ],
   "configuration_version": "1"

@@ -1,6 +1,5 @@
-package com.tinder.conestoga.Kevin;
+package com.tinder.conestoga.kevin;
 
-import android.*;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.net.Uri;
@@ -22,6 +21,8 @@ import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
@@ -40,6 +41,8 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     private static final int RC_STORAGE_PERMS = 102;
 
     private final String TAG = this.getClass().getSimpleName();
+
+    private FirebaseAuth mAuth;
 
     String mCurrentPhotoPath;
 
@@ -69,6 +72,14 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         // [START get_storage_ref]
         mStorageRef = FirebaseStorage.getInstance().getReference();
         // [END get_storage_ref]
+
+        // Initialize Firebase Auth
+        mAuth = FirebaseAuth.getInstance();
+
+
+        //for now sing in anonymously otherwise the photo cannot be updated
+        signInAnonymously();
+
 
         // Restore instance state
         if (savedInstanceState != null) {
@@ -219,6 +230,30 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                 .setMessage(message)
                 .create();
         ad.show();
+    }
+
+
+
+    private void signInAnonymously() {
+        // Sign in anonymously. Authentication is required to read or write from Firebase Storage.
+        showProgressDialog();
+        mAuth.signInAnonymously()
+                .addOnSuccessListener(this, new OnSuccessListener<AuthResult>() {
+                    @Override
+                    public void onSuccess(AuthResult authResult) {
+                        Log.d(TAG, "signInAnonymously:SUCCESS");
+                        hideProgressDialog();
+                        //updateUI(authResult.getUser());
+                    }
+                })
+                .addOnFailureListener(this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception exception) {
+                        Log.e(TAG, "signInAnonymously:FAILURE", exception);
+                        hideProgressDialog();
+                        //updateUI(null);
+                    }
+                });
     }
 
 

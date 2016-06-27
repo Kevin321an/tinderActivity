@@ -1,4 +1,4 @@
-package com.tinder.conestoga.Kevin;
+package com.tinder.conestoga.kevin;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;

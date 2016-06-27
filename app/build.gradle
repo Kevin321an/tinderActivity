@@ -5,7 +5,7 @@ android {
     buildToolsVersion "23.0.3"
 
     defaultConfig {
-        applicationId "com.ass2.conestoga.assignment2"
+        applicationId "com.tinder.conestoga.kevin"
         minSdkVersion 15
         targetSdkVersion 23
         versionCode 1

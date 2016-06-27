@@ -1,4 +1,4 @@
-package com.tinder.conestoga.Kevin;
+package com.tinder.conestoga.kevin;
 
 import org.junit.Test;
 

@@ -3,7 +3,10 @@ package com.tinder.conestoga.kevin;
 import android.app.Activity;
 import android.app.Dialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
+import android.location.Location;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -39,6 +42,7 @@ import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.tinder.conestoga.kevin.models.Post;
 import com.tinder.conestoga.kevin.viewAdapter.*;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,7 +53,7 @@ import java.util.UUID;
 import pub.devrel.easypermissions.AfterPermissionGranted;
 import pub.devrel.easypermissions.EasyPermissions;
 
-public class MainActivity extends AppCompatActivity implements EasyPermissions.PermissionCallbacks{
+public class MainActivity extends AppCompatActivity implements EasyPermissions.PermissionCallbacks {
 
     //request ID
     private static final int RC_TAKE_PICTURE = 101;
@@ -65,11 +69,17 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     private static final String KEY_FILE_URI = "key_file_uri";
     private static final String KEY_DOWNLOAD_URL = "key_download_url";
 
+    private LocationManager myLocationManager;
+    public static double la =0.0;
+    public static double lng= 0.0;
+
+
+
 
     Post currentPost;
     //keep the data from cloud
     ArrayList<Post> _post;
-    Activity _activity =this;
+    Activity _activity = this;
 
     ViewAdapter adapter;
     ViewPager viewPager;
@@ -119,6 +129,13 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                         .setAction("Action", null).show();
             }
         });
+
+        String perm[] = {android.Manifest.permission.ACCESS_COARSE_LOCATION,android.Manifest.permission.ACCESS_NETWORK_STATE,android.Manifest.permission.INTERNET};
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && !EasyPermissions.hasPermissions(this, perm)) {
+            EasyPermissions.requestPermissions(this, getString(R.string.rationale_storage),
+                    RC_STORAGE_PERMS, perm);
+        }
     }
 
 
@@ -155,12 +172,12 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                         // Get the public download URL
                         mDownloadUrl = taskSnapshot.getMetadata().getDownloadUrl();
 
-                        writeNewPost(currentPost.author, currentPost.title,currentPost.body, mDownloadUrl.toString());
+                        writeNewPost(currentPost.author, currentPost.title, currentPost.body, mDownloadUrl.toString(), la, lng);
 
                         // [START_EXCLUDE]
                         hideProgressDialog();
 
-                       // updateUI(mAuth.getCurrentUser());
+                        // updateUI(mAuth.getCurrentUser());
                         // [END_EXCLUDE]
                     }
                 })
@@ -182,12 +199,12 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                 });
     }
 
-    private void writeNewPost(String username, String title, String body, String url) {
+    private void writeNewPost(String username, String title, String body, String url, double lat, double lng) {
         // Create new post at /user-posts/$userid/$postid and at
         // /posts/$postid simultaneously
 
         String key = mDatabase.child("posts").push().getKey();
-        Post post = new Post("1", username, title, body, url);
+        Post post = new Post("1", username, title, body, url, lat, lng);
         Map<String, Object> postValues = post.toMap();
         Map<String, Object> childUpdates = new HashMap<>();
         childUpdates.put("/posts/" + key, postValues);
@@ -239,7 +256,6 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     }
 
 
-
     //deal with the result backing from camera implicit intent
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -257,6 +273,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             }
         }
     }
+
     //Dialog
     private void showMessageDialog(String title, String message) {
         AlertDialog ad = new AlertDialog.Builder(this)
@@ -287,14 +304,14 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                 });
     }
 
-    public void getData(){
+    public void getData() {
         showProgressDialog();
         ChildEventListener childEventListener = new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
                 Log.d(TAG, "onChildAdded:" + dataSnapshot.getKey());
 
-                adapter = new ViewAdapter(_activity, getData(dataSnapshot,previousChildName));
+                adapter = new ViewAdapter(_activity, getData(dataSnapshot, previousChildName));
                 adapter.notifyDataSetChanged();
                 viewPager.setAdapter(adapter);
                 hideProgressDialog();
@@ -304,7 +321,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
                 Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
                 showProgressDialog();
-                adapter.swapData(getData(dataSnapshot,previousChildName));
+                adapter.swapData(getData(dataSnapshot, previousChildName));
                 adapter.notifyDataSetChanged();
                 hideProgressDialog();
             }
@@ -333,12 +350,12 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     }
 
     //get the updated data from cloud
-    private ArrayList<Post> getData(DataSnapshot dataSnapshot, String previousChildName ){
+    private ArrayList<Post> getData(DataSnapshot dataSnapshot, String previousChildName) {
         ArrayList<Post> t = new ArrayList<>();
-        if(previousChildName==null){
-            for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
+        if (previousChildName == null) {
+            for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
                 Post post = postSnapshot.getValue(Post.class);
-                System.out.println(post.url+ " - " + post.author);
+                System.out.println(post.url + " - " + post.author);
                 t.add(post);
             }
         }
@@ -347,41 +364,86 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
 
 
     //add activity dialog
-   public void dialog(){
-       // custom dialog
-       final Dialog dialog = new Dialog(_activity);
-       dialog.setContentView(R.layout.layout_dialog);
-       dialog.setTitle("Add new activity");
+    public void dialog() {
+        // custom dialog
+        final Dialog dialog = new Dialog(_activity);
+        dialog.setContentView(R.layout.layout_dialog);
+        dialog.setTitle("Add new activity");
 
-       // set the custom dialog components - text, image and button
-       final EditText title = (EditText) dialog.findViewById(R.id.title);
-       final EditText desc = (EditText) dialog.findViewById(R.id.des);
-       final EditText address = (EditText) dialog.findViewById(R.id.address);
-       final EditText organizer = (EditText) dialog.findViewById(R.id.author_add);
+        // set the custom dialog components - text, image and button
+        final EditText title = (EditText) dialog.findViewById(R.id.title);
+        final EditText desc = (EditText) dialog.findViewById(R.id.des);
+        final EditText address = (EditText) dialog.findViewById(R.id.address);
+        final EditText organizer = (EditText) dialog.findViewById(R.id.author_add);
 
-       Button add = (Button) dialog.findViewById(R.id.add_activity);
-       // if button is clicked, close the custom dialog
-       add.setOnClickListener(new View.OnClickListener() {
-           @Override
-           public void onClick(View v) {
-               Snackbar.make(v, "execute", Snackbar.LENGTH_LONG)
-                       .setAction("Action", null).show();
-               currentPost = new Post();
-               currentPost.title=title.getText().toString();
-               currentPost.body=desc.getText().toString();
-               currentPost.author=organizer.getText().toString();
-               launchCamera();
-               dialog.dismiss();
-           }
-       });
-       dialog.show();
-       Window window = dialog.getWindow();
-       window.setLayout(ViewPager.LayoutParams.MATCH_PARENT, ViewPager.LayoutParams.WRAP_CONTENT);
+        Button add = (Button) dialog.findViewById(R.id.add_activity);
+        // if button is clicked, close the custom dialog
+        add.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Snackbar.make(v, "execute", Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();
+                currentPost = new Post();
+                currentPost.title = title.getText().toString();
+                currentPost.body = desc.getText().toString();
+                currentPost.author = organizer.getText().toString();
+                getposition();
+                launchCamera();
+                dialog.dismiss();
+            }
+        });
+        dialog.show();
+        Window window = dialog.getWindow();
+        window.setLayout(ViewPager.LayoutParams.MATCH_PARENT, ViewPager.LayoutParams.WRAP_CONTENT);
 
-   }
+    }
+
+
+    //distance between two lat and lng
+    public static float distFrom(float lat1, float lng1, float lat2, float lng2) {
+        double earthRadius = 6371000; //meters
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        float dist = (float) (earthRadius * c);
+
+        return dist;
+    }
 
 
 
+    public void getposition() {
+        Location location = getLastKnownLocation();
+        la = location.getLatitude();
+        lng = location.getLongitude();
+    }
+
+
+    private Location getLastKnownLocation() {
+        myLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        List<String> providers = myLocationManager.getProviders(true);
+        Location bestLocation = null;
+        String perm[] = {android.Manifest.permission.ACCESS_COARSE_LOCATION,android.Manifest.permission.ACCESS_NETWORK_STATE,android.Manifest.permission.INTERNET};
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && !EasyPermissions.hasPermissions(this, perm)) {
+            EasyPermissions.requestPermissions(this, getString(R.string.rationale_storage),
+                    RC_STORAGE_PERMS, perm);
+        }
+        for (String provider : providers) {
+            Location l = myLocationManager.getLastKnownLocation(provider);
+            if (l == null) {
+                continue;
+            }
+            if (bestLocation == null || l.getAccuracy() < bestLocation.getAccuracy()) {
+                // Found best last known location: %s", l);
+                bestLocation = l;
+            }
+        }
+        return bestLocation;
+    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
@@ -390,10 +452,12 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     }
 
     @Override
-    public void onPermissionsGranted(int requestCode, List<String> perms) {}
+    public void onPermissionsGranted(int requestCode, List<String> perms) {
+    }
 
     @Override
-    public void onPermissionsDenied(int requestCode, List<String> perms) {}
+    public void onPermissionsDenied(int requestCode, List<String> perms) {
+    }
 
 
     @Override
@@ -416,4 +480,5 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         }
         return super.onOptionsItemSelected(item);
     }
+
 }

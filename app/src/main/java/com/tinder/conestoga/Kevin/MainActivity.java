@@ -1,19 +1,17 @@
 package com.tinder.conestoga.kevin;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.app.ProgressDialog;
-import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.support.annotation.InterpolatorRes;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
-import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -22,8 +20,9 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.ViewGroup;
-import android.widget.ImageView;
+import android.view.Window;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
@@ -66,6 +65,8 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     private static final String KEY_FILE_URI = "key_file_uri";
     private static final String KEY_DOWNLOAD_URL = "key_download_url";
 
+
+    Post currentPost;
     //keep the data from cloud
     ArrayList<Post> _post;
     Activity _activity =this;
@@ -104,53 +105,22 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             mDownloadUrl = savedInstanceState.getParcelable(KEY_DOWNLOAD_URL);
         }
 
-        /*ViewPager viewPager = (ViewPager) findViewById(R.id.view_pager);
-        ImagePagerAdapter adapter = new ImagePagerAdapter();
-        viewPager.setAdapter(adapter);*/
-
         //pass the data to the ViewAdapter
         viewPager = (ViewPager) findViewById(R.id.view_pager);
         getData();
-
-
-
-         /*_post = new ArrayList<>();
-
-        _post.add(new Post("test", "test", "test","test", "https://firebasestorage.googleapis.com/v0/b/cloudmessaging-e6225.appspot.com/o/photos%2F10201f89-f9e2-4eb6-933d-6ab8f7ee224a.jpg?alt=media&token=9623bff0-876d-4b79-8723-2f067c686d24"));
-        _post.add(new Post("test", "test", "test","test", "https://firebasestorage.googleapis.com/v0/b/cloudmessaging-e6225.appspot.com/o/photos%2F10201f89-f9e2-4eb6-933d-6ab8f7ee224a.jpg?alt=media&token=9623bff0-876d-4b79-8723-2f067c686d24"));
-
-        adapter = new ViewAdapter(this,_post);
-        viewPager.setAdapter(adapter);*/
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
 
-                launchCamera();
+                dialog();
                 Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
             }
         });
     }
 
-    //deal with the result backing from camera implicit intent
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        Log.d(TAG, "onActivityResult:" + requestCode + ":" + resultCode + ":" + data);
-        if (requestCode == RC_TAKE_PICTURE) {
-            if (resultCode == RESULT_OK) {
-                if (mFileUri != null) {
-                    uploadFromUri(mFileUri);
-
-                } else {
-                    Log.w(TAG, "File URI is null");
-                }
-            } else {
-                Toast.makeText(this, "Taking picture failed.", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
 
     @Override
     public void onSaveInstanceState(Bundle out) {
@@ -185,7 +155,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                         // Get the public download URL
                         mDownloadUrl = taskSnapshot.getMetadata().getDownloadUrl();
 
-                        writeNewPost("test", "test", "test","test", mDownloadUrl.toString());
+                        writeNewPost(currentPost.author, currentPost.title,currentPost.body, mDownloadUrl.toString());
 
                         // [START_EXCLUDE]
                         hideProgressDialog();
@@ -212,16 +182,16 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                 });
     }
 
-    private void writeNewPost(String userId, String username, String title, String body, String url) {
+    private void writeNewPost(String username, String title, String body, String url) {
         // Create new post at /user-posts/$userid/$postid and at
         // /posts/$postid simultaneously
+
         String key = mDatabase.child("posts").push().getKey();
-        Post post = new Post(userId, username, title, body, url);
+        Post post = new Post("1", username, title, body, url);
         Map<String, Object> postValues = post.toMap();
         Map<String, Object> childUpdates = new HashMap<>();
         childUpdates.put("/posts/" + key, postValues);
         //childUpdates.put("/user-posts/" + userId + "/" + key, postValues);
-
         mDatabase.updateChildren(childUpdates);
     }
 
@@ -245,7 +215,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
 
 
     @AfterPermissionGranted(RC_STORAGE_PERMS)
-    private void launchCamera() {
+    public void launchCamera() {
         Log.d(TAG, "launchCamera");
         // Check that we have permission to read images from external storage.
         String perm = android.Manifest.permission.READ_EXTERNAL_STORAGE;
@@ -269,6 +239,24 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     }
 
 
+
+    //deal with the result backing from camera implicit intent
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        Log.d(TAG, "onActivityResult:" + requestCode + ":" + resultCode + ":" + data);
+        if (requestCode == RC_TAKE_PICTURE) {
+            if (resultCode == RESULT_OK) {
+                if (mFileUri != null) {
+                    uploadFromUri(mFileUri);
+
+                } else {
+                    Log.w(TAG, "File URI is null");
+                }
+            } else {
+                Toast.makeText(this, "Taking picture failed.", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
     //Dialog
     private void showMessageDialog(String title, String message) {
         AlertDialog ad = new AlertDialog.Builder(this)
@@ -305,15 +293,8 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
                 Log.d(TAG, "onChildAdded:" + dataSnapshot.getKey());
-                ArrayList<Post> t = new ArrayList<>();
-                if(previousChildName==null){
-                    for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
-                        Post post = postSnapshot.getValue(Post.class);
-                        System.out.println(post.url+ " - " + post.author);
-                        t.add(post);
-                    }
-                }
-                adapter = new ViewAdapter(_activity,t);
+
+                adapter = new ViewAdapter(_activity, getData(dataSnapshot,previousChildName));
                 adapter.notifyDataSetChanged();
                 viewPager.setAdapter(adapter);
                 hideProgressDialog();
@@ -323,17 +304,8 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
                 Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
                 showProgressDialog();
-                ArrayList<Post> t = new ArrayList<>();
-                if(previousChildName==null){
-                    for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
-                        Post post = postSnapshot.getValue(Post.class);
-                        System.out.println(post.url+ " - " + post.author);
-                        t.add(post);
-                    }
-                }
-                adapter = new ViewAdapter(_activity,t);
+                adapter.swapData(getData(dataSnapshot,previousChildName));
                 adapter.notifyDataSetChanged();
-                viewPager.setAdapter(adapter);
                 hideProgressDialog();
             }
 
@@ -359,6 +331,54 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
 
         mDatabase.addChildEventListener(childEventListener);
     }
+
+    //get the updated data from cloud
+    private ArrayList<Post> getData(DataSnapshot dataSnapshot, String previousChildName ){
+        ArrayList<Post> t = new ArrayList<>();
+        if(previousChildName==null){
+            for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
+                Post post = postSnapshot.getValue(Post.class);
+                System.out.println(post.url+ " - " + post.author);
+                t.add(post);
+            }
+        }
+        return t;
+    }
+
+
+    //add activity dialog
+   public void dialog(){
+       // custom dialog
+       final Dialog dialog = new Dialog(_activity);
+       dialog.setContentView(R.layout.layout_dialog);
+       dialog.setTitle("Add new activity");
+
+       // set the custom dialog components - text, image and button
+       final EditText title = (EditText) dialog.findViewById(R.id.title);
+       final EditText desc = (EditText) dialog.findViewById(R.id.des);
+       final EditText address = (EditText) dialog.findViewById(R.id.address);
+       final EditText organizer = (EditText) dialog.findViewById(R.id.author_add);
+
+       Button add = (Button) dialog.findViewById(R.id.add_activity);
+       // if button is clicked, close the custom dialog
+       add.setOnClickListener(new View.OnClickListener() {
+           @Override
+           public void onClick(View v) {
+               Snackbar.make(v, "execute", Snackbar.LENGTH_LONG)
+                       .setAction("Action", null).show();
+               currentPost = new Post();
+               currentPost.title=title.getText().toString();
+               currentPost.body=desc.getText().toString();
+               currentPost.author=organizer.getText().toString();
+               launchCamera();
+               dialog.dismiss();
+           }
+       });
+       dialog.show();
+       Window window = dialog.getWindow();
+       window.setLayout(ViewPager.LayoutParams.MATCH_PARENT, ViewPager.LayoutParams.WRAP_CONTENT);
+
+   }
 
 
 

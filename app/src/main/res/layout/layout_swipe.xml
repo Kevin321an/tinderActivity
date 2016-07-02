@@ -13,7 +13,7 @@
         android:scaleType="centerCrop"
         />
     <!--android:scaleType="centerInside"-->
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:orientation="vertical"
@@ -29,11 +29,20 @@
         <TextView
             android:id="@+id/title"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:gravity="top|center"
             android:textSize="20sp"
             android:text="Title"/>
-    </LinearLayout>
+        <TextView
+            android:layout_below="@+id/title"
+            android:id="@+id/body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/activity_horizontal_margin"
+            android:gravity="center"
+            android:textSize="20sp"
+            android:text="Body"/>
+    </RelativeLayout>
 
 
 </LinearLayout>

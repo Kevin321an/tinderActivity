@@ -37,7 +37,7 @@ public class ViewAdapter extends PagerAdapter {
     final String TAG = this.getClass().getSimpleName();
 
     private Activity _activity;
-    private ArrayList<Post> _post;
+    static private ArrayList<Post> _post;
     private LayoutInflater inflater;
 
     // constructor
@@ -45,6 +45,10 @@ public class ViewAdapter extends PagerAdapter {
                        ArrayList<Post> post) {
         this._activity = activity;
         this._post = post;
+    }
+
+    public void swapData(ArrayList<Post> data){
+        _post=data;
     }
 
     @Override
@@ -75,7 +79,7 @@ public class ViewAdapter extends PagerAdapter {
     public Object instantiateItem(ViewGroup container, int position) {
         ImageView imgDisplay;
         TextView organizer;
-        TextView title;
+        TextView title,body;
 
         inflater = (LayoutInflater) _activity
                 .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
@@ -85,6 +89,7 @@ public class ViewAdapter extends PagerAdapter {
         imgDisplay = (ImageView) viewLayout.findViewById(R.id.imgDisplay);
         organizer = (TextView) viewLayout.findViewById(R.id.organizer);
         title = (TextView) viewLayout.findViewById(R.id.title);
+        body = (TextView) viewLayout.findViewById(R.id.body);
 
 
         Log.v("adapter", _post.get(position).url + _post.get(position).author + _post.get(position).title);
@@ -92,6 +97,7 @@ public class ViewAdapter extends PagerAdapter {
                 .centerCrop().into(imgDisplay);
         organizer.setText(_post.get(position).author);
         title.setText(_post.get(position).title);
+        body.setText(_post.get(position).body);
 
 
         // close button click event

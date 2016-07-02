@@ -1,5 +1,6 @@
 package com.tinder.conestoga.kevin;
 
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
@@ -8,6 +9,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.annotation.InterpolatorRes;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -28,6 +30,9 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.storage.FirebaseStorage;
@@ -60,6 +65,14 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     private ProgressDialog mProgressDialog;
     private static final String KEY_FILE_URI = "key_file_uri";
     private static final String KEY_DOWNLOAD_URL = "key_download_url";
+
+    //keep the data from cloud
+    ArrayList<Post> _post;
+    Activity _activity =this;
+
+    ViewAdapter adapter;
+    ViewPager viewPager;
+
 
     //Uri of Could https://firebasestorage.googleapis.com/v0/b/cloudmessaging-e6225.appspot.com/o/photos%2Fc68ef52f-9149-4d93-9b96-46310fa143bb.jpg?alt=media&token=0dd28019-29a5-4718-8d37-39c4660030ea
     private Uri mDownloadUrl = null;
@@ -96,12 +109,18 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         viewPager.setAdapter(adapter);*/
 
         //pass the data to the ViewAdapter
-        ArrayList<Post> str = new ArrayList<>();
-        str.add(new Post("test", "test", "test","test", "https://firebasestorage.googleapis.com/v0/b/cloudmessaging-e6225.appspot.com/o/photos%2F10201f89-f9e2-4eb6-933d-6ab8f7ee224a.jpg?alt=media&token=9623bff0-876d-4b79-8723-2f067c686d24"));
-        str.add(new Post("test", "test", "test","test", "https://firebasestorage.googleapis.com/v0/b/cloudmessaging-e6225.appspot.com/o/photos%2F10201f89-f9e2-4eb6-933d-6ab8f7ee224a.jpg?alt=media&token=9623bff0-876d-4b79-8723-2f067c686d24"));
-        ViewPager viewPager = (ViewPager) findViewById(R.id.view_pager);
-        ViewAdapter adapter = new ViewAdapter(this,str);
-        viewPager.setAdapter(adapter);
+        viewPager = (ViewPager) findViewById(R.id.view_pager);
+        getData();
+
+
+
+         /*_post = new ArrayList<>();
+
+        _post.add(new Post("test", "test", "test","test", "https://firebasestorage.googleapis.com/v0/b/cloudmessaging-e6225.appspot.com/o/photos%2F10201f89-f9e2-4eb6-933d-6ab8f7ee224a.jpg?alt=media&token=9623bff0-876d-4b79-8723-2f067c686d24"));
+        _post.add(new Post("test", "test", "test","test", "https://firebasestorage.googleapis.com/v0/b/cloudmessaging-e6225.appspot.com/o/photos%2F10201f89-f9e2-4eb6-933d-6ab8f7ee224a.jpg?alt=media&token=9623bff0-876d-4b79-8723-2f067c686d24"));
+
+        adapter = new ViewAdapter(this,_post);
+        viewPager.setAdapter(adapter);*/
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -199,10 +218,9 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         String key = mDatabase.child("posts").push().getKey();
         Post post = new Post(userId, username, title, body, url);
         Map<String, Object> postValues = post.toMap();
-
         Map<String, Object> childUpdates = new HashMap<>();
         childUpdates.put("/posts/" + key, postValues);
-        childUpdates.put("/user-posts/" + userId + "/" + key, postValues);
+        //childUpdates.put("/user-posts/" + userId + "/" + key, postValues);
 
         mDatabase.updateChildren(childUpdates);
     }
@@ -280,6 +298,69 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                     }
                 });
     }
+
+    public void getData(){
+        showProgressDialog();
+        ChildEventListener childEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildAdded:" + dataSnapshot.getKey());
+                ArrayList<Post> t = new ArrayList<>();
+                if(previousChildName==null){
+                    for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
+                        Post post = postSnapshot.getValue(Post.class);
+                        System.out.println(post.url+ " - " + post.author);
+                        t.add(post);
+                    }
+                }
+                adapter = new ViewAdapter(_activity,t);
+                adapter.notifyDataSetChanged();
+                viewPager.setAdapter(adapter);
+                hideProgressDialog();
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
+                showProgressDialog();
+                ArrayList<Post> t = new ArrayList<>();
+                if(previousChildName==null){
+                    for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
+                        Post post = postSnapshot.getValue(Post.class);
+                        System.out.println(post.url+ " - " + post.author);
+                        t.add(post);
+                    }
+                }
+                adapter = new ViewAdapter(_activity,t);
+                adapter.notifyDataSetChanged();
+                viewPager.setAdapter(adapter);
+                hideProgressDialog();
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.w(TAG, "postComments:onCancelled", databaseError.toException());
+                Toast.makeText(_activity, "Failed to load comments.",
+                        Toast.LENGTH_SHORT).show();
+            }
+        };
+
+
+        mDatabase.addChildEventListener(childEventListener);
+    }
+
+
 
 
     @Override

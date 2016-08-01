@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.location.Address;
 import android.location.Geocoder;
+import android.support.v4.app.ShareCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -65,37 +66,34 @@ public class SwipeDeckAdapter extends BaseAdapter {
         TextView body = (TextView) v.findViewById(R.id.body);
         TextView author = (TextView) v.findViewById(R.id.author);
         TextView city = (TextView) v.findViewById(R.id.city);
-        String title = data.get(position).title;
+        final String title = data.get(position).title;
         String bodyStr = data.get(position).body;
         String authorStr = data.get(position).author;
-        String cityStr = latlngToGeo(data.get(position).lat, data.get(position).lng) ;
+       final String cityStr = latlngToGeo(data.get(position).lat, data.get(position).lng) ;
 
-        String item = data.get(position).title;
+
         textView.setText(title);
         body.setText(bodyStr);
         author.setText(authorStr);
         city.setText(cityStr);
-
         v.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Log.i("Layer type: ", Integer.toString(v.getLayerType()));
-                Log.i("Hwardware Accel type:", Integer.toString(View.LAYER_TYPE_HARDWARE));
-                Intent i = new Intent(v.getContext(), BlankActivity.class);
-                v.getContext().startActivity(i);
+
+                shareInfo("Join the activity  " +  title + "at " + cityStr);
             }
         });
         return v;
     }
+
+    //convert the lat lng to geo locaton
     public String latlngToGeo(double lat, double lng) {
         Geocoder geocoder;
         List<Address> yourAddresses;
         geocoder = new Geocoder(context, Locale.getDefault());
         String yourAddress, yourCity, yourCountry;
-
         try {
             yourAddresses = geocoder.getFromLocation(lat, lng, 1);
-
             if (yourAddresses.size() > 0) {
                 yourAddress = yourAddresses.get(0).getAddressLine(0);
                 yourCity = yourAddresses.get(0).getAddressLine(1);
@@ -111,6 +109,15 @@ public class SwipeDeckAdapter extends BaseAdapter {
 
 
 
+    }
+
+
+    //share the activity
+    public void shareInfo(String str){
+        context.startActivity(Intent.createChooser(ShareCompat.IntentBuilder.from(context)
+                .setType("text/plain")
+                .setText(str)
+                .getIntent(), context.getString(R.string.action_share)));
     }
 
 }

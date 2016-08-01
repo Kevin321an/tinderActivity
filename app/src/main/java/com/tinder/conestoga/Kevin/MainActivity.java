@@ -5,6 +5,8 @@ import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationManager;
 import android.net.Uri;
@@ -28,6 +30,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.daprlabs.cardstack.SwipeDeck;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.AuthResult;
@@ -42,14 +45,14 @@ import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.tinder.conestoga.kevin.models.Post;
 import com.tinder.conestoga.kevin.viewAdapter.*;
-
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-
 import pub.devrel.easypermissions.AfterPermissionGranted;
 import pub.devrel.easypermissions.EasyPermissions;
 
@@ -73,17 +76,19 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     public static double la =0.0;
     public static double lng= 0.0;
 
-
-
-
     Post currentPost;
     //keep the data from cloud
     ArrayList<Post> _post;
     Activity _activity = this;
 
-    ViewAdapter adapter;
+    //ViewAdapter adapter;
     ViewPager viewPager;
 
+
+    private SwipeDeck cardStack;
+
+    private SwipeDeckAdapter adapter;
+    private ArrayList<String> testData;
 
     //Uri of Could https://firebasestorage.googleapis.com/v0/b/cloudmessaging-e6225.appspot.com/o/photos%2Fc68ef52f-9149-4d93-9b96-46310fa143bb.jpg?alt=media&token=0dd28019-29a5-4718-8d37-39c4660030ea
     private Uri mDownloadUrl = null;
@@ -94,8 +99,8 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+      /*  Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);*/
 
         // Initialize Firebase Storage Ref
         // [START get_storage_ref]
@@ -116,8 +121,56 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         }
 
         //pass the data to the ViewAdapter
-        viewPager = (ViewPager) findViewById(R.id.view_pager);
+//        viewPager = (ViewPager) findViewById(R.id.view_pager);
+//        getData();
+
+        //setContentView(R.layout.activity_swipe_deck);
+        cardStack = (SwipeDeck) findViewById(R.id.swipe_deck);
+        cardStack.setHardwareAccelerationEnabled(true);
+
+        /*testData = new ArrayList<>();
+        testData.add("0");
+        testData.add("1");
+        testData.add("2");
+        testData.add("3");
+        testData.add("4");
+
+        adapter = new SwipeDeckAdapter(testData, this);
+        cardStack.setAdapter(adapter);*/
+
         getData();
+
+
+
+        cardStack.setEventCallback(new SwipeDeck.SwipeEventCallback() {
+            @Override
+            public void cardSwipedLeft(int position) {
+                Log.i("MainActivity", "card was swiped left, position in adapter: " + position);
+            }
+
+            @Override
+            public void cardSwipedRight(int position) {
+                Log.i("MainActivity", "card was swiped right, position in adapter: " + position);
+            }
+
+            @Override
+            public void cardsDepleted() {
+                Log.i("MainActivity", "no more cards");
+            }
+
+            @Override
+            public void cardActionDown() {
+                Log.i(TAG, "cardActionDown");
+            }
+
+            @Override
+            public void cardActionUp() {
+                Log.i(TAG, "cardActionUp");
+            }
+
+        });
+        cardStack.setLeftImage(R.id.left_image);
+        cardStack.setRightImage(R.id.right_image);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -129,6 +182,8 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                         .setAction("Action", null).show();
             }
         });
+
+
 
         String perm[] = {android.Manifest.permission.ACCESS_COARSE_LOCATION,android.Manifest.permission.ACCESS_NETWORK_STATE,android.Manifest.permission.INTERNET};
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
@@ -202,7 +257,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     private void writeNewPost(String username, String title, String body, String url, double lat, double lng) {
         // Create new post at /user-posts/$userid/$postid and at
         // /posts/$postid simultaneously
-
+        latlngToGeo(lat, lng);
         String key = mDatabase.child("posts").push().getKey();
         Post post = new Post("1", username, title, body, url, lat, lng);
         Map<String, Object> postValues = post.toMap();
@@ -304,6 +359,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                 });
     }
 
+    //real time data listener
     public void getData() {
         showProgressDialog();
         ChildEventListener childEventListener = new ChildEventListener() {
@@ -311,9 +367,14 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
                 Log.d(TAG, "onChildAdded:" + dataSnapshot.getKey());
 
-                adapter = new ViewAdapter(_activity, getData(dataSnapshot, previousChildName));
+                if(adapter==null)
+                adapter = new SwipeDeckAdapter(getData(dataSnapshot, previousChildName), _activity);
+                cardStack.setAdapter(adapter);
+
+                //adapter = new ViewAdapter(_activity, getData(dataSnapshot, previousChildName));
+
+                //viewPager.setAdapter(adapter);
                 adapter.notifyDataSetChanged();
-                viewPager.setAdapter(adapter);
                 hideProgressDialog();
             }
 
@@ -321,7 +382,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
                 Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
                 showProgressDialog();
-                adapter.swapData(getData(dataSnapshot, previousChildName));
+                //dapter.swapData(getData(dataSnapshot, previousChildName));
                 adapter.notifyDataSetChanged();
                 hideProgressDialog();
             }
@@ -344,8 +405,6 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                         Toast.LENGTH_SHORT).show();
             }
         };
-
-
         mDatabase.addChildEventListener(childEventListener);
     }
 
@@ -354,7 +413,13 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         ArrayList<Post> t = new ArrayList<>();
         if (previousChildName == null) {
             for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+
                 Post post = postSnapshot.getValue(Post.class);
+                double lat  = post.lat;
+                double lng  = post.lng;
+                Location l = getLastKnownLocation();
+                double distance = distFrom(lat,lng, l.getLatitude(),l.getLongitude());
+                Log.v("distance b/w two points",Double.toString(distance) );
                 System.out.println(post.url + " - " + post.author);
                 t.add(post);
             }
@@ -400,7 +465,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
 
 
     //distance between two lat and lng
-    public static float distFrom(float lat1, float lng1, float lat2, float lng2) {
+    public static double distFrom(double lat1, double lng1, double lat2, double lng2) {
         double earthRadius = 6371000; //meters
         double dLat = Math.toRadians(lat2 - lat1);
         double dLng = Math.toRadians(lng2 - lng1);
@@ -409,19 +474,17 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                         Math.sin(dLng / 2) * Math.sin(dLng / 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         float dist = (float) (earthRadius * c);
-
         return dist;
     }
 
-
-
+    //call getLastKnownLocation() passing values to la and lng
     public void getposition() {
         Location location = getLastKnownLocation();
         la = location.getLatitude();
         lng = location.getLongitude();
     }
 
-
+    // get the current location in Location Class
     private Location getLastKnownLocation() {
         myLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         List<String> providers = myLocationManager.getProviders(true);
@@ -441,10 +504,36 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                 // Found best last known location: %s", l);
                 bestLocation = l;
             }
+
         }
         return bestLocation;
     }
 
+
+    //transfer the lat and lng to geo address
+    public  void latlngToGeo( double lat, double lng){
+        Geocoder geocoder;
+        List<Address> yourAddresses;
+        geocoder = new Geocoder(this, Locale.getDefault());
+        String yourAddress, yourCity, yourCountry;
+
+        try{
+            yourAddresses= geocoder.getFromLocation(lat, lng, 1);
+
+            if (yourAddresses.size() > 0)
+            {
+                 yourAddress = yourAddresses.get(0).getAddressLine(0);
+                 yourCity = yourAddresses.get(0).getAddressLine(1);
+                 yourCountry = yourAddresses.get(0).getAddressLine(2);
+                Log.v("transform address", yourAddress+yourCity+ yourCountry);
+            }
+        }catch (IOException e) {
+            System.err.println("Caught IOException: " + e.getMessage());
+        }
+
+    }
+
+    /*Request the permission via easy permission */
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -467,13 +556,13 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         return true;
     }
 
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
             return true;

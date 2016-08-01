@@ -4,4 +4,5 @@
 
 
     <string name="rationale_storage">This sample reads images from your camera to demonstrate uploading.</string>
+    <string name="title_activity_blank"></string>
 </resources>

@@ -115,6 +115,5 @@ public class ViewAdapter extends PagerAdapter {
     @Override
     public void destroyItem(ViewGroup container, int position, Object object) {
         ((ViewPager) container).removeView((LinearLayout) object);
-
     }
 }

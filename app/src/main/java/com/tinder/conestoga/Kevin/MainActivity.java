@@ -5,6 +5,7 @@ import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -45,6 +46,7 @@ import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.tinder.conestoga.kevin.models.Post;
 import com.tinder.conestoga.kevin.viewAdapter.*;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -53,6 +55,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+
 import pub.devrel.easypermissions.AfterPermissionGranted;
 import pub.devrel.easypermissions.EasyPermissions;
 
@@ -73,8 +76,8 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
     private static final String KEY_DOWNLOAD_URL = "key_download_url";
 
     private LocationManager myLocationManager;
-    public static double la =0.0;
-    public static double lng= 0.0;
+    public static double la = 0.0;
+    public static double lng = 0.0;
 
     Post currentPost;
     //keep the data from cloud
@@ -141,7 +144,6 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         getData();
 
 
-
         cardStack.setEventCallback(new SwipeDeck.SwipeEventCallback() {
             @Override
             public void cardSwipedLeft(int position) {
@@ -173,6 +175,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         cardStack.setRightImage(R.id.right_image);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        FloatingActionButton distance = (FloatingActionButton) findViewById(R.id.distance);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -182,10 +185,16 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
                         .setAction("Action", null).show();
             }
         });
+        distance.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                distanceDialog();
+            }
+        });
 
 
-
-        String perm[] = {android.Manifest.permission.ACCESS_COARSE_LOCATION,android.Manifest.permission.ACCESS_NETWORK_STATE,android.Manifest.permission.INTERNET};
+        String perm[] = {android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_NETWORK_STATE, android.Manifest.permission.INTERNET};
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
                 && !EasyPermissions.hasPermissions(this, perm)) {
             EasyPermissions.requestPermissions(this, getString(R.string.rationale_storage),
@@ -274,7 +283,6 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             mProgressDialog.setMessage("Loading...");
             mProgressDialog.setIndeterminate(true);
         }
-
         mProgressDialog.show();
     }
 
@@ -367,8 +375,8 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
                 Log.d(TAG, "onChildAdded:" + dataSnapshot.getKey());
 
-                if(adapter==null)
-                adapter = new SwipeDeckAdapter(getData(dataSnapshot, previousChildName), _activity);
+                if (adapter == null)
+                    adapter = new SwipeDeckAdapter(getData(dataSnapshot, previousChildName), _activity);
                 cardStack.setAdapter(adapter);
 
                 //adapter = new ViewAdapter(_activity, getData(dataSnapshot, previousChildName));
@@ -415,18 +423,19 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
             for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
 
                 Post post = postSnapshot.getValue(Post.class);
-                double lat  = post.lat;
-                double lng  = post.lng;
+                double lat = post.lat;
+                double lng = post.lng;
                 Location l = getLastKnownLocation();
-                double distance = distFrom(lat,lng, l.getLatitude(),l.getLongitude());
-                Log.v("distance b/w two points",Double.toString(distance) );
+                double distance = distFrom(lat, lng, l.getLatitude(), l.getLongitude());
+                Log.v("distance b/w two points", Double.toString(distance));
                 System.out.println(post.url + " - " + post.author);
-                t.add(post);
+                //only add the result within the search radius
+                if (distance < getDistance(_activity))
+                    t.add(post);
             }
         }
         return t;
     }
-
 
     //add activity dialog
     public void dialog() {
@@ -463,6 +472,47 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
 
     }
 
+    public void distanceDialog() {
+        // custom dialog
+        final Dialog dialog = new Dialog(_activity);
+        dialog.setContentView(R.layout.layout_distance);
+        dialog.setTitle("Add new activity");
+
+        // set the custom dialog components - text, image and button
+        final EditText distance = (EditText) dialog.findViewById(R.id.distance);
+
+        Button add = (Button) dialog.findViewById(R.id.set);
+        // if button is clicked, close the custom dialog
+        add.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Snackbar.make(v, "execute", Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();
+                distanceSet(_activity, Integer.parseInt(distance.getText().toString()));
+                dialog.dismiss();
+            }
+        });
+        dialog.show();
+        Window window = dialog.getWindow();
+        window.setLayout(ViewPager.LayoutParams.MATCH_PARENT, ViewPager.LayoutParams.WRAP_CONTENT);
+
+    }
+
+    final String DISTANCE = "distance";
+
+    public void distanceSet(Activity ac, int s) {
+
+        SharedPreferences preferences = ac.getPreferences(ac.MODE_PRIVATE);
+        int mFirst = preferences.getInt(DISTANCE, s);
+
+    }
+
+    public int getDistance(Activity ac) {
+        SharedPreferences preferences = ac.getPreferences(ac.MODE_PRIVATE);
+        int mFirst = preferences.getInt(DISTANCE, Integer.MAX_VALUE);
+        return mFirst;
+    }
+
 
     //distance between two lat and lng
     public static double distFrom(double lat1, double lng1, double lat2, double lng2) {
@@ -489,7 +539,7 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
         myLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         List<String> providers = myLocationManager.getProviders(true);
         Location bestLocation = null;
-        String perm[] = {android.Manifest.permission.ACCESS_COARSE_LOCATION,android.Manifest.permission.ACCESS_NETWORK_STATE,android.Manifest.permission.INTERNET};
+        String perm[] = {android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_NETWORK_STATE, android.Manifest.permission.INTERNET};
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
                 && !EasyPermissions.hasPermissions(this, perm)) {
             EasyPermissions.requestPermissions(this, getString(R.string.rationale_storage),
@@ -511,23 +561,22 @@ public class MainActivity extends AppCompatActivity implements EasyPermissions.P
 
 
     //transfer the lat and lng to geo address
-    public  void latlngToGeo( double lat, double lng){
+    public void latlngToGeo(double lat, double lng) {
         Geocoder geocoder;
         List<Address> yourAddresses;
         geocoder = new Geocoder(this, Locale.getDefault());
         String yourAddress, yourCity, yourCountry;
 
-        try{
-            yourAddresses= geocoder.getFromLocation(lat, lng, 1);
+        try {
+            yourAddresses = geocoder.getFromLocation(lat, lng, 1);
 
-            if (yourAddresses.size() > 0)
-            {
-                 yourAddress = yourAddresses.get(0).getAddressLine(0);
-                 yourCity = yourAddresses.get(0).getAddressLine(1);
-                 yourCountry = yourAddresses.get(0).getAddressLine(2);
-                Log.v("transform address", yourAddress+yourCity+ yourCountry);
+            if (yourAddresses.size() > 0) {
+                yourAddress = yourAddresses.get(0).getAddressLine(0);
+                yourCity = yourAddresses.get(0).getAddressLine(1);
+                yourCountry = yourAddresses.get(0).getAddressLine(2);
+                Log.v("transform address", yourAddress + yourCity + yourCountry);
             }
-        }catch (IOException e) {
+        } catch (IOException e) {
             System.err.println("Caught IOException: " + e.getMessage());
         }
 
